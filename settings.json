@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/linhan/.claude/hooks/rtk-rewrite.sh"
+            "command": "sh -c '\"$HOME/.claude/hooks/rtk-rewrite.sh\"'"
           }
         ]
       }
@@ -14,7 +14,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash /home/linhan/.claude/statusline-command.sh"
+    "command": "sh -c 'bash \"$HOME/.claude/statusline-command.sh\"'"
   },
   "enabledPlugins": {
     "astral@astral-sh": true,
