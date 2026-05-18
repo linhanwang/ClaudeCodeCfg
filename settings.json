@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "defaultMode": "auto"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -7,6 +10,28 @@
           {
             "type": "command",
             "command": "sh -c '\"$HOME/.claude/hooks/rtk-rewrite.sh\"'"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'for t in /dev/pts/[0-9]*; do [ -w \"$t\" ] && printf \"\\a\" > \"$t\" 2>/dev/null; done'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'for t in /dev/pts/[0-9]*; do [ -w \"$t\" ] && printf \"\\a\" > \"$t\" 2>/dev/null; done'"
           }
         ]
       }
@@ -40,7 +65,5 @@
   "theme": "dark",
   "editorMode": "vim",
   "skipAutoPermissionPrompt": true,
-  "permissions": {
-    "defaultMode": "auto"
-  }
+  "agentPushNotifEnabled": true
 }
