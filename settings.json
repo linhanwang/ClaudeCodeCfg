@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'for t in /dev/pts/[0-9]*; do [ -w \"$t\" ] && printf \"\\a\" > \"$t\" 2>/dev/null; done'"
+            "command": "sh -c '\"$HOME/.claude/hooks/bell.sh\"'"
           }
         ]
       }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'for t in /dev/pts/[0-9]*; do [ -w \"$t\" ] && printf \"\\a\" > \"$t\" 2>/dev/null; done'"
+            "command": "sh -c '\"$HOME/.claude/hooks/bell.sh\"'"
           }
         ]
       }
