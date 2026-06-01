@@ -1,0 +1,371 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["boto3"]
+# ///
+"""r2: a small Cloudflare R2 (S3-compatible) toolkit.
+
+Atomic subcommands, each also exposed as an importable function:
+
+    put    upload file(s)            -> r2_put()
+    get    download object(s)        -> r2_get()
+    ls     list keys                 -> r2_list()
+    rm     delete object(s)          -> r2_delete()
+    stat   object metadata / exists  -> r2_stat()
+    url    public r2.dev URL         -> public_url()
+    sign   presigned URL (temp)      -> presign()
+    cp     server-side copy          -> r2_copy()
+    mv     copy then delete          -> r2_copy()+r2_delete()
+    sync   recursive dir upload      -> r2_sync()
+
+Programmatic use:
+    from r2 import get_client, r2_put
+    s3, bucket = get_client()
+    print(r2_put(s3, bucket, "shot.png"))   # -> public URL (or r2:// path)
+
+Credentials come from the environment, falling back to ~/.r2env
+(KEY=VALUE or `export KEY="VALUE"` lines). Required: R2_ENDPOINT,
+R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET. Optional: R2_DEV (public r2.dev
+base URL) -> enables `put`/`url` to print public https links.
+
+Note: r2.dev URLs are rate-limited and meant for testing/sharing, not
+production hotlinking. For private/temporary access use `sign` (presigned).
+"""
+import argparse, os, sys, mimetypes
+from datetime import datetime
+from pathlib import Path
+import secrets
+
+import boto3
+from botocore.exceptions import ClientError
+
+
+# --------------------------------------------------------------------------- #
+# credentials / client
+# --------------------------------------------------------------------------- #
+def load_env_file(path: Path):
+    """Populate os.environ from a KEY=VALUE / `export KEY=VALUE` file.
+
+    Already-set environment variables win (setdefault), so an interactive
+    shell that exported the vars takes precedence over the file.
+    """
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):]
+        if "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+def get_client(env_file: Path | None = None):
+    """Return (s3_client, bucket_name), loading creds from env or ~/.r2env."""
+    load_env_file(env_file or Path.home() / ".r2env")
+    required = ("R2_ENDPOINT", "R2_ACCESS_KEY", "R2_SECRET_KEY", "R2_BUCKET")
+    missing = [k for k in required if not os.environ.get(k)]
+    if missing:
+        sys.exit(f"Missing env vars: {', '.join(missing)}. Set them or fill in ~/.r2env.")
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=os.environ["R2_ENDPOINT"],
+        aws_access_key_id=os.environ["R2_ACCESS_KEY"],
+        aws_secret_access_key=os.environ["R2_SECRET_KEY"],
+        region_name="auto",
+    )
+    return s3, os.environ["R2_BUCKET"]
+
+
+# --------------------------------------------------------------------------- #
+# helpers
+# --------------------------------------------------------------------------- #
+def public_url(key: str) -> str | None:
+    """Public r2.dev URL for a key, or None if R2_DEV is unset."""
+    base = os.environ.get("R2_DEV")
+    return f"{base.rstrip('/')}/{key.lstrip('/')}" if base else None
+
+
+def make_key(path: Path, tag: str | None) -> str:
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    name = f"{stamp}_{secrets.token_hex(3)}_{path.name}"
+    return f"{tag.strip('/')}/{name}" if tag else name
+
+
+def _content_type(name: str) -> str:
+    return mimetypes.guess_type(name)[0] or "application/octet-stream"
+
+
+def human_size(n: int) -> str:
+    f = float(n)
+    for unit in ("B", "K", "M", "G", "T"):
+        if f < 1024 or unit == "T":
+            return f"{f:.0f}{unit}" if unit == "B" else f"{f:.1f}{unit}"
+        f /= 1024
+    return f"{f:.1f}T"
+
+
+def parse_duration(s: str) -> int:
+    """'3600' / '90m' / '2h' / '7d' -> seconds."""
+    s = str(s).strip().lower()
+    units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+    if s and s[-1] in units:
+        return int(float(s[:-1]) * units[s[-1]])
+    return int(s)
+
+
+# --------------------------------------------------------------------------- #
+# atomic operations (importable)
+# --------------------------------------------------------------------------- #
+def r2_put(s3, bucket, file, key=None, tag=None) -> str:
+    """Upload one file. Returns the public URL if R2_DEV is set, else r2://."""
+    f = Path(file)
+    key = key or make_key(f, tag)
+    s3.upload_file(str(f), bucket, key, ExtraArgs={"ContentType": _content_type(f.name)})
+    return public_url(key) or f"r2://{bucket}/{key}"
+
+
+def r2_get(s3, bucket, key, dest) -> Path:
+    """Download key to dest (a file path). Returns the local Path."""
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    s3.download_file(bucket, key, str(dest))
+    return dest
+
+
+def r2_list(s3, bucket, prefix="") -> list[dict]:
+    """Return [{key, size, last_modified, etag}, ...] under prefix."""
+    out, paginator = [], s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for o in page.get("Contents", []):
+            out.append(
+                {"key": o["Key"], "size": o["Size"],
+                 "last_modified": o["LastModified"], "etag": o["ETag"].strip('"')}
+            )
+    return out
+
+
+def r2_stat(s3, bucket, key) -> dict | None:
+    """Object metadata, or None if it does not exist."""
+    try:
+        h = s3.head_object(Bucket=bucket, Key=key)
+    except ClientError as e:
+        if e.response["Error"]["Code"] in ("404", "NoSuchKey", "NotFound"):
+            return None
+        raise
+    return {"key": key, "size": h["ContentLength"], "content_type": h.get("ContentType"),
+            "last_modified": h["LastModified"], "etag": h["ETag"].strip('"')}
+
+
+def r2_delete(s3, bucket, keys) -> int:
+    """Delete one key (str) or many (list). Returns count requested."""
+    keys = [keys] if isinstance(keys, str) else list(keys)
+    if not keys:
+        return 0
+    s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in keys]})
+    return len(keys)
+
+
+def r2_copy(s3, bucket, src_key, dst_key) -> str:
+    """Server-side copy within the bucket. Returns dst_key."""
+    s3.copy_object(Bucket=bucket, CopySource={"Bucket": bucket, "Key": src_key}, Key=dst_key)
+    return dst_key
+
+
+def presign(s3, bucket, key, method="get", expires=3600) -> str:
+    """Presigned URL. method in {get, put, delete, head}. expires in seconds (max 604800)."""
+    op = {"get": "get_object", "put": "put_object",
+          "delete": "delete_object", "head": "head_object"}[method]
+    expires = max(1, min(int(expires), 604800))
+    return s3.generate_presigned_url(op, Params={"Bucket": bucket, "Key": key}, ExpiresIn=expires)
+
+
+def r2_sync(s3, bucket, localdir, tag=None) -> list[str]:
+    """Recursively upload localdir; keys preserve the relative tree. Returns keys."""
+    root = Path(localdir)
+    prefix = (tag.strip("/") + "/") if tag else ""
+    keys = []
+    for f in sorted(p for p in root.rglob("*") if p.is_file()):
+        key = prefix + f.relative_to(root).as_posix()
+        s3.upload_file(str(f), bucket, key, ExtraArgs={"ContentType": _content_type(f.name)})
+        keys.append(key)
+    return keys
+
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+def cmd_put(s3, bucket, a):
+    if a.key and len(a.files) != 1:
+        sys.exit("--key requires exactly one file")
+    for f in a.files:
+        if not f.is_file():
+            print(f"skip (not a file): {f}", file=sys.stderr)
+            continue
+        key = a.key or make_key(f, a.tag)
+        try:
+            s3.upload_file(str(f), bucket, key, ExtraArgs={"ContentType": _content_type(f.name)})
+        except ClientError as e:
+            print(f"FAIL {f}: {e}", file=sys.stderr)
+            continue
+        url = public_url(key)
+        if a.quiet:
+            print(url or f"r2://{bucket}/{key}")
+        else:
+            print(f"{f}  ->  r2://{bucket}/{key}")
+            if url:
+                print(f"    {url}")
+
+
+def cmd_get(s3, bucket, a):
+    multi = len(a.keys) > 1
+    for key in a.keys:
+        if a.output and not multi:
+            dest = Path(a.output)
+            if dest.is_dir():
+                dest = dest / Path(key).name
+        else:
+            base = Path(a.output) if (a.output and multi) else Path.cwd()
+            dest = base / Path(key).name
+        try:
+            r2_get(s3, bucket, key, dest)
+        except ClientError as e:
+            print(f"FAIL {key}: {e}", file=sys.stderr)
+            continue
+        print(dest)
+
+
+def cmd_ls(s3, bucket, a):
+    rows = r2_list(s3, bucket, a.prefix or "")
+    for r in rows:
+        if a.long:
+            ts = r["last_modified"].strftime("%Y-%m-%d %H:%M")
+            print(f"{human_size(r['size']):>7}  {ts}  {r['key']}")
+        else:
+            print(r["key"])
+    if a.long:
+        total = sum(r["size"] for r in rows)
+        print(f"# {len(rows)} object(s), {human_size(total)}", file=sys.stderr)
+
+
+def cmd_rm(s3, bucket, a):
+    n = r2_delete(s3, bucket, a.keys)
+    print(f"deleted {n} object(s)")
+
+
+def cmd_stat(s3, bucket, a):
+    info = r2_stat(s3, bucket, a.key)
+    if info is None:
+        print(f"not found: {a.key}", file=sys.stderr)
+        sys.exit(1)
+    ts = info["last_modified"].strftime("%Y-%m-%d %H:%M:%S")
+    print(f"key:          {info['key']}")
+    print(f"size:         {info['size']} ({human_size(info['size'])})")
+    print(f"content-type: {info['content_type']}")
+    print(f"modified:     {ts}")
+    print(f"etag:         {info['etag']}")
+    url = public_url(info["key"])
+    if url:
+        print(f"url:          {url}")
+
+
+def cmd_url(s3, bucket, a):
+    if not os.environ.get("R2_DEV"):
+        sys.exit("R2_DEV not set; cannot build public URL. Use `r2 sign` for a presigned URL.")
+    for key in a.keys:
+        print(public_url(key))
+
+
+def cmd_sign(s3, bucket, a):
+    for key in a.keys:
+        print(presign(s3, bucket, key, method=a.method, expires=parse_duration(a.expires)))
+
+
+def cmd_cp(s3, bucket, a):
+    r2_copy(s3, bucket, a.src, a.dst)
+    print(f"r2://{bucket}/{a.src}  ->  r2://{bucket}/{a.dst}")
+
+
+def cmd_mv(s3, bucket, a):
+    r2_copy(s3, bucket, a.src, a.dst)
+    r2_delete(s3, bucket, a.src)
+    print(f"r2://{bucket}/{a.src}  =>  r2://{bucket}/{a.dst}")
+
+
+def cmd_sync(s3, bucket, a):
+    if not a.dir.is_dir():
+        sys.exit(f"not a directory: {a.dir}")
+    keys = r2_sync(s3, bucket, a.dir, tag=a.tag)
+    for k in keys:
+        print(k)
+    print(f"# synced {len(keys)} file(s)", file=sys.stderr)
+
+
+def build_parser():
+    p = argparse.ArgumentParser(prog="r2", description="Cloudflare R2 toolkit.")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("put", help="upload file(s); print public URL")
+    sp.add_argument("files", nargs="+", type=Path)
+    sp.add_argument("-t", "--tag", help="key prefix (folder)")
+    sp.add_argument("-k", "--key", help="exact key (one file only)")
+    sp.add_argument("-q", "--quiet", action="store_true", help="print only the URL")
+    sp.set_defaults(func=cmd_put)
+
+    sp = sub.add_parser("get", help="download object(s)")
+    sp.add_argument("keys", nargs="+")
+    sp.add_argument("-o", "--output", help="output file (single) or directory")
+    sp.set_defaults(func=cmd_get)
+
+    sp = sub.add_parser("ls", help="list keys under a prefix")
+    sp.add_argument("prefix", nargs="?", default="")
+    sp.add_argument("-l", "--long", action="store_true", help="show size and mtime")
+    sp.set_defaults(func=cmd_ls)
+
+    sp = sub.add_parser("rm", help="delete object(s)")
+    sp.add_argument("keys", nargs="+")
+    sp.set_defaults(func=cmd_rm)
+
+    sp = sub.add_parser("stat", help="object metadata (exit 1 if missing)")
+    sp.add_argument("key")
+    sp.set_defaults(func=cmd_stat)
+
+    sp = sub.add_parser("url", help="public r2.dev URL for a key")
+    sp.add_argument("keys", nargs="+")
+    sp.set_defaults(func=cmd_url)
+
+    sp = sub.add_parser("sign", help="presigned URL (temporary access)")
+    sp.add_argument("keys", nargs="+")
+    sp.add_argument("-m", "--method", default="get", choices=["get", "put", "delete", "head"])
+    sp.add_argument("-e", "--expires", default="1h", help="e.g. 3600, 90m, 2h, 7d (max 7d)")
+    sp.set_defaults(func=cmd_sign)
+
+    sp = sub.add_parser("cp", help="server-side copy within bucket")
+    sp.add_argument("src")
+    sp.add_argument("dst")
+    sp.set_defaults(func=cmd_cp)
+
+    sp = sub.add_parser("mv", help="move (copy then delete) within bucket")
+    sp.add_argument("src")
+    sp.add_argument("dst")
+    sp.set_defaults(func=cmd_mv)
+
+    sp = sub.add_parser("sync", help="recursively upload a directory")
+    sp.add_argument("dir", type=Path)
+    sp.add_argument("-t", "--tag", help="key prefix (folder)")
+    sp.set_defaults(func=cmd_sync)
+
+    return p
+
+
+def main():
+    args = build_parser().parse_args()
+    s3, bucket = get_client()
+    args.func(s3, bucket, args)
+
+
+if __name__ == "__main__":
+    main()
