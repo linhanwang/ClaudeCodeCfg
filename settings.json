@@ -2,18 +2,8 @@
   "permissions": {
     "defaultMode": "auto"
   },
+  "model": "fable",
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c '\"$HOME/.claude/hooks/rtk-rewrite.sh\"'"
-          }
-        ]
-      }
-    ],
     "Notification": [
       {
         "matcher": "",
@@ -62,8 +52,9 @@
   },
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
   "theme": "dark",
   "editorMode": "vim",
-  "skipAutoPermissionPrompt": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }
