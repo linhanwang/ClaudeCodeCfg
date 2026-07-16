@@ -33,20 +33,13 @@
   },
   "enabledPlugins": {
     "astral@astral-sh": true,
-    "commit-commands@claude-plugins-official": true,
-    "codex@openai-codex": true
+    "commit-commands@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "astral-sh": {
       "source": {
         "source": "github",
         "repo": "astral-sh/claude-code-plugins"
-      }
-    },
-    "openai-codex": {
-      "source": {
-        "source": "github",
-        "repo": "openai/codex-plugin-cc"
       }
     }
   },
