@@ -1,3 +1,7 @@
+## Documentation
+
+- Docs meant for human reading (design docs, plans, reports) must stay concise: verdicts, decisions, and pointers only — move detailed receipts, forensics, and dead ends to archive files or results dirs.
+
 ## Git Preferences
 
 - Do not commit automatically. Only commit when explicitly asked.
