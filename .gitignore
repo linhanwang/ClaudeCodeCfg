@@ -1,5 +1,6 @@
 *
 !.gitignore
+!LICENSE
 !CLAUDE.md
 !RTK.md
 !settings.json
