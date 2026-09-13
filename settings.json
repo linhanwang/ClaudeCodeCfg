@@ -72,29 +72,30 @@
   "autoMode": {
     "environment": [
       "### Org-wide",
-      "**Organization**: None configured",
+      "**Organization**: None configured — this repo (linhanwang/lerobot) is a personal fork of huggingface/lerobot; no org account evidence found",
       "**Cloud provider(s)**: None configured",
-      "**Repository visibility**: not queryable via gh here — assume private (no evidence of public visibility for linhanwang/starVLA); README/badges reference a separate public org (StarVLA/starvla.github.io) but that is not this repo's remote",
+      "**Repository visibility**: not queryable here — treat as unverified; assume private unless shown otherwise (this repo is a fork of the public huggingface/lerobot, but the fork's own visibility was not confirmed)",
       "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
-      "**Secrets management**: None configured — repo has a docker/collab/secrets.env.example placeholder and .gitignore patterns for .env/.hf_token/.wandb_api_key/*_token/*api_key, indicating local dotfile secrets, not a managed secrets service",
-      "**Default / protected branches**: Default branch starVLA_dev (per repo facts); branch protection/rulesets not queryable here — treat starVLA_dev and starVLA as protected by convention (CLAUDE.md: 'all PRs must target this branch', stable release branch starVLA)",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: main (default branch, per repo facts) — protection status not queryable here",
       "**CI/CD deploy targets**: None configured",
       "**Network posture**: None configured",
-      "**Source control**: The trusted repo (github.com:linhanwang/starVLA.git) and its remote(s) only (no additional orgs configured)",
+      "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine with open internet",
+      "**Source control**: The trusted repo (linhanwang/lerobot, remote github.com:linhanwang/lerobot.git) and its upstream reference in CONTRIBUTING.md (github.com/huggingface/lerobot) only",
       "**Trusted internal domains**: None configured",
       "**Trusted cloud buckets**: None configured",
-      "**Key internal services**: None configured",
+      "**Key internal services**: huggingface.co (contacted 5× in recent transcripts; also referenced throughout repo docs and CI as the model/dataset hub)",
       "**Internal package registry**: None configured",
-      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar; locally in this repo: .env, .hf_token, .wandb_api_key, *_token, *api_key patterns, and docker/collab/secrets.env.example are sensitive-looking paths — treat as secrets, never commit or expose",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar; note .gitignore flags `.env` and `*.key` as locally-sensitive patterns in this repo",
       "**Data retention / declassification**: None configured",
-      "**Sensitive remote targets**: any namespace, host, or container whose name carries prod or production as a whole word or name segment (hyphen/underscore/dot-delimited)",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment",
       "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
-      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries prod or production as a whole word or name segment",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
       "### User-specific",
-      "**Primary use of Claude Code**: software development (VLA/robotics research codebase — training, evaluation sweeps, LaTeX/paper artifacts)",
-      "**Trusted repo**: This repo (starVLA, working directory /Users/linhanwang/projects/starVLA) and its remote github.com:linhanwang/starVLA.git; assume private — confidential material (excluding secrets/credentials, which are never cleared) is OK to commit here, but content ported from outside this repo/session is not this repo's own work",
-      "**Org-specific CLIs**: None configured",
-      "routine under results/Checkpoints/, examples/<benchmark>/, and docs/ prefixes of this repo are normal working areas per CLAUDE.md"
+      "**Primary use of Claude Code**: software development (robotics ML — LeRobot framework, per README/CONTRIBUTING)",
+      "**Trusted repo**: /home/zijian/projects/lerobot (working directory), remote github.com:linhanwang/lerobot.git — a fork; visibility unverified so treat as private-cautious; content ported from outside this repo/session is not this repo's own work",
+      "**Org-specific CLIs**: None configured — `hf` (Hugging Face CLI) and `uv`/`uvx` seen frequently in shell history/transcripts but are public general-purpose tools, not org-internal",
+      "routine under linhanwang/lerobot prefix: git push, branch work, and local dev/test commands scoped to this repo are routine"
     ]
   }
 }

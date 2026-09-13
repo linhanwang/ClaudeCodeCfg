@@ -10,5 +10,7 @@
 ## Process Management
 
 - Only kill processes by exact PID I launched this session. Never `pkill -f`, `killall`, or pattern-based kills unless the user explicitly asks.
+- Terminate with graceful `SIGTERM` (`kill <pid>`) and give the process time to exit. Never `kill -9`/`SIGKILL`: GPU jobs (MuJoCo/EGL/CUDA) skipped past their cleanup handlers leave EGL contexts dangling, which is what caused the GPU driver failure we hit.
+- Never run `nvidia-smi --gpu-reset` or other driver-level resets.
 
 @RTK.md
