@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "opus"
+  },
   "permissions": {
     "defaultMode": "auto"
   },
@@ -33,7 +36,8 @@
   },
   "enabledPlugins": {
     "astral@astral-sh": true,
-    "commit-commands@claude-plugins-official": true
+    "commit-commands@claude-plugins-official": true,
+    "document-skills@anthropic-agent-skills": true
   },
   "extraKnownMarketplaces": {
     "astral-sh": {
@@ -41,14 +45,56 @@
         "source": "github",
         "repo": "astral-sh/claude-code-plugins"
       }
+    },
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
     }
   },
   "effortLevel": "high",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5": {
+      "effortLevel": "high"
+    }
+  },
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
   "theme": "dark",
   "editorMode": "vim",
   "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "autoMode": {
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: not queryable via gh here — assume private (no evidence of public visibility for linhanwang/starVLA); README/badges reference a separate public org (StarVLA/starvla.github.io) but that is not this repo's remote",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured — repo has a docker/collab/secrets.env.example placeholder and .gitignore patterns for .env/.hf_token/.wandb_api_key/*_token/*api_key, indicating local dotfile secrets, not a managed secrets service",
+      "**Default / protected branches**: Default branch starVLA_dev (per repo facts); branch protection/rulesets not queryable here — treat starVLA_dev and starVLA as protected by convention (CLAUDE.md: 'all PRs must target this branch', stable release branch starVLA)",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Source control**: The trusted repo (github.com:linhanwang/starVLA.git) and its remote(s) only (no additional orgs configured)",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar; locally in this repo: .env, .hf_token, .wandb_api_key, *_token, *api_key patterns, and docker/collab/secrets.env.example are sensitive-looking paths — treat as secrets, never commit or expose",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries prod or production as a whole word or name segment (hyphen/underscore/dot-delimited)",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries prod or production as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (VLA/robotics research codebase — training, evaluation sweeps, LaTeX/paper artifacts)",
+      "**Trusted repo**: This repo (starVLA, working directory /Users/linhanwang/projects/starVLA) and its remote github.com:linhanwang/starVLA.git; assume private — confidential material (excluding secrets/credentials, which are never cleared) is OK to commit here, but content ported from outside this repo/session is not this repo's own work",
+      "**Org-specific CLIs**: None configured",
+      "routine under results/Checkpoints/, examples/<benchmark>/, and docs/ prefixes of this repo are normal working areas per CLAUDE.md"
+    ]
+  }
 }
