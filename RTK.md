@@ -27,5 +27,3 @@ There is no auto-rewrite hook; commands run exactly as written. Invoke `rtk`
 explicitly, and only for bulky read-only output where a filtered view is fine
 (e.g. `rtk git log`, `rtk ls`, `rtk grep`). Never use rtk when stdout is
 redirected to a file or parsed, or when exact verbatim output matters.
-
-Refer to CLAUDE.md for full command reference.
